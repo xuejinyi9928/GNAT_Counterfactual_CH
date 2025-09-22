@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GNAT_CH</title>
+    <script src="https://unpkg.com/jspsych@8.2.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.0.0"></script>
+    <script src="https://www.wjdpn.cn/epilepsy/javascriptlibrary/jstat.js"></script>
+    <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <style>
+        .no-cursor {
+            cursor: none;
+        }
+        h1 {
+            font-size: 36px;
+        }
+        p {
+            font-size: 26px;
+        }
+    </style>
+    <style>
+        .no-cursor {
+            cursor:none;
+        }
+    </style>
+</head>
+<body>
+</body>
+
+<script>
+    var jsPsych = initJsPsych({
+        on_finish: function() {
+            jsPsych.data.addProperties({
+                participant: id,
+                p_c: p_c,
+                p_h: p_h,
+                f_c: f_c,
+                f_h: f_h
+            });
+            var data = jsPsych.data.get().filter({task: 'response'});
+            if (p_c <= 0 || p_h <= 0 || f_c <= 0 || f_h <= 0) {
+                alert("您至少有一轮的得分未超过零，您需要重新进行整个实验。");
+            } else {
+                data.localSave('csv', `GNAT_CH_${id}.csv`);
+                alert("实验数据已保存，感谢您的参与！");
+            }
+            
+        }
+    });
+    var timeline = [];
+    var id;
+    do {
+        id = prompt("请输入您的ID：", "");
+    } while (!/^\d+$/.test(id));
+    
+    var fullscreen = {
+        type: jsPsychFullscreen,
+        fullscreen_mode: true,
+        message: '<p>请按下按钮进入全屏模式以开始实验。</p>',
+        button_label: '进入全屏',
+    };
+    timeline.push(fullscreen);
+
+    var instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <h1>欢迎参加实验！</h1>
+            <br>
+            <p>请您在一个安静的环境中完成实验，尽量避免干扰。</p>
+            <p>在本实验中，您将会看到一系列单词或短句一个接一个地出现在屏幕上。</p>
+            <p>每一轮开始前会公布一个（或两个）目标类别。</p>
+            <p>您的任务是当看到属于目标类别的项目时，立即按下<b>空格键</b>。</p>
+            <p>项目不属于目标类别时，您不需要做任何反应，等待下一个项目出现。</p>
+            <p>未能在规定时间内对目标做出反应，或对非目标做出了反应，都会被视为错误。</p>
+            <p>每个项目后，您都会收到正误反馈（<span style="color: green">O</span>/<span style="color: red">X</span>）。</p>
+            <p>实验结束后，您会看到您的得分。</p>
+            <p>如果您的得分未超过随机水平，您需要重新进行整个实验。</p>
+            <p>请您尽力完成实验！</p>
+            <p>实验大约需要10分钟。</p>
+            <br>
+            <p>（请按空格键继续...）</p>
+        `,
+        choices: 'NO_KEYS',
+        on_load: function() {
+            setTimeout(function() {
+                jsPsych.pluginAPI.getKeyboardResponse({
+                    valid_responses: [' '],
+                    callback_function: function() {
+                        jsPsych.finishTrial();
+                    }
+                });
+            }, 2000)
+        },
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        },
+    };
+    timeline.push(instructions);
+
+    var time_stimuli = [
+        {item: '昨天', category: '过去'},
+        {item: '上周', category: '过去'},
+        {item: '上个月', category: '过去'},
+        {item: '去年', category: '过去'},
+        {item: '明天', category: '未来'},
+        {item: '下周', category: '未来'},
+        {item: '下个月', category: '未来'},
+        {item: '明年', category: '未来'},
+    ];
+     var conditional_stimuli = [
+        {item: '如果我是一只狗', category: '反事实'},
+        {item: '如果我会飞', category: '反事实'},
+        {item: '如果我有超能力', category: '反事实'},
+        {item: '如果我住在火星', category: '反事实'},
+        {item: '如果我饿了', category: '假设'},
+        {item: '如果我感到开心', category: '假设'},
+        {item: '如果我努力工作', category: '假设'},
+        {item: '如果我想睡觉', category: '假设'},
+    ];
+    var all_stimuli = time_stimuli.concat(conditional_stimuli);
+
+    var current_condition = '';
+
+    var fixation = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<div style="font-size:36px;">+</div>',
+        choices: "NO_KEYS",
+        trial_duration: 500,
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        }
+    };
+
+    var familiarization_task = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            return `
+                <div style="font-size:36px;">${jsPsych.evaluateTimelineVariable('item')}</div>
+            `;
+        },
+        choices: [' '],
+        trial_duration: 1000,
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        },
+        on_finish: function(data) {
+            data.task = 'response';
+            data.block = 'familiarization';
+            data.condition = current_condition,
+            data.stimulus = jsPsych.evaluateTimelineVariable('item'),
+            data.category = jsPsych.evaluateTimelineVariable('category');
+            if(data.category == data.condition) {
+                data.correct_response = ' ';
+                data.trail_type = 'go';
+            } else {
+                data.correct_response = null;
+                data.trail_type = 'no-go';
+            };
+            if(data.response == data.correct_response) {
+                data.correct = true;
+            } else {
+                data.correct = false;
+            };
+        }
+    }
+
+    var feedback = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            var last_trial_correct = jsPsych.data.get().last(1).values()[0].correct;
+            if (last_trial_correct) {
+                return `
+                <div style="font-size:36px; color: green;"><br><br>O</div>`;
+            } else {
+                return `
+                <div style="font-size:36px; color: red;"><br><br>X</div>`;
+            }   
+        },
+        choices: "NO_KEYS",
+        trial_duration: 100,
+        post_trial_gap: 50,
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        }
+    };
+
+    var familiarization_time_trials = {
+        timeline: [familiarization_task, feedback],
+        timeline_variables: time_stimuli, 
+        randomize_order: true,
+        repetitions: 2,
+        on_timeline_start: function() {
+            current_condition = jsPsych.evaluateTimelineVariable('condition');
+        },
+    }
+
+
+    var familiarization_time_instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            return `
+            <br>
+            <p>在这一轮中，目标类别是<b>${jsPsych.evaluateTimelineVariable('condition')}</b>。您需要：</p>
+            <p>（1）当看到表示<b>${jsPsych.evaluateTimelineVariable('condition')}</b>时间的单词时，立即按下空格键。</p>
+            <p>（2）当看到其他项目时，不要做任何反应，等待下一个项目出现。</p>
+            <p>未能在规定时间内对目标做出反应，或对非目标做出了反应，都会被视为错误。</p>
+            <br>
+            <p>（请按空格键开始...）</p>
+        `
+        },
+        choices: 'NO_KEYS',
+        on_load: function() {
+            setTimeout(function() {
+                jsPsych.pluginAPI.getKeyboardResponse({
+                    valid_responses: [' '],
+                    callback_function: function() {
+                        jsPsych.finishTrial();
+                    }
+                });
+            }, 2000)
+        },
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        },
+    };
+
+    var familiarization_time_blocks = {
+        timeline: [familiarization_time_instructions, fixation, familiarization_time_trials],
+        timeline_variables: [{condition: '过去'}, {condition: '未来'}],
+        randomize_order: true,
+    }
+    timeline.push(familiarization_time_blocks);
+
+    var familiarization_conditional_trials = {
+        timeline: [familiarization_task, feedback],
+        timeline_variables: conditional_stimuli, 
+        randomize_order: true,
+        repetitions: 2,
+        on_timeline_start: function() {
+            current_condition = jsPsych.evaluateTimelineVariable('condition');
+        },
+    }
+
+    var familiarization_conditional_instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            return `
+            <p>反事实条件句描述与现实相反的情形，<br>例如，“如果我是你”。</p>
+            <p>假设条件句描述可能为真或可能发生的情形，<br>例如，“如果我感到难过”。</p>
+            <br>
+            <p>在这一轮中，目标类别是<b>${jsPsych.evaluateTimelineVariable('condition')}</b>。您需要：</p>
+            <p>（1）当看到表示<b>${jsPsych.evaluateTimelineVariable('condition')}</b>条件的短语时，立即按下空格键。</p>
+            <p>（2）当看到其他项目时，不要做任何反应，等待下一个项目出现。</p>
+            <br>
+            <p>（请按空格键开始...）</p>
+        `
+        },
+        choices: 'NO_KEYS',
+        on_load: function() {
+            setTimeout(function() {
+                jsPsych.pluginAPI.getKeyboardResponse({
+                    valid_responses: [' '],
+                    callback_function: function() {
+                        jsPsych.finishTrial();
+                    }
+                });
+            }, 2000)
+        },
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        },
+    };
+
+    var familiarization_conditional_blocks = {
+        timeline: [familiarization_conditional_instructions, fixation, familiarization_conditional_trials],
+        timeline_variables: [{condition: '反事实'}, {condition: '假设'}],
+        randomize_order: true,
+    };
+    timeline.push(familiarization_conditional_blocks);
+
+    var association_instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            return `
+            <p>在接下来的几轮中，每一轮会有<b>两个</b>目标类别。</p>
+            <p>当看到属于这两个目标类别之一的项目时，都需要按下空格键。</p>
+            <p>此外时间限制也将变得更短。</p>
+            <br>
+            <p>（请按空格键继续...）</p>
+        `
+        },
+        choices: 'NO_KEYS',
+        on_load: function() {
+            setTimeout(function() {
+                jsPsych.pluginAPI.getKeyboardResponse({
+                    valid_responses: [' '],
+                    callback_function: function() {
+                        jsPsych.finishTrial();
+                    }
+                });
+            }, 2000)
+        },
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        },
+    }
+    timeline.push(association_instructions);
+
+    var association_conditions = [
+        {condition: '过去 + 反事实', time: '过去', conditional: '反事实'},
+        {condition: '过去 + 假设', time: '过去', conditional: '假设'},
+        {condition: '未来 + 反事实', time: '未来', conditional: '反事实'},
+        {condition: '未来 + 假设', time: '未来', conditional: '假设'},
+    ]
+
+    var association_practice_task = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            return `
+                <div style="font-size:36px;">${jsPsych.evaluateTimelineVariable('item')}</div>
+            `;
+        },
+        choices: [' '],
+        trial_duration: 800,
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        },
+        on_finish: function(data) {
+            data.task = 'response';
+            data.block = 'practice';
+            data.condition = current_condition,
+            data.stimulus = jsPsych.evaluateTimelineVariable('item'),
+            data.category = jsPsych.evaluateTimelineVariable('category');
+            data.time = jsPsych.evaluateTimelineVariable('time');
+            data.conditional = jsPsych.evaluateTimelineVariable('conditional');
+            if(data.category == data.time || data.category == data.conditional) {
+                data.correct_response = ' ';
+                data.trail_type = 'go';
+            } else {
+                data.correct_response = null;
+                data.trail_type = 'no-go';
+            };
+            if(data.response == data.correct_response) {
+                data.correct = true;
+            } else {
+                data.correct = false;
+            };
+        }
+    }
+
+    var association_formal_task = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            return `
+                <div style="font-size:36px;">${jsPsych.evaluateTimelineVariable('item')}</div>
+            `;
+        },
+        choices: [' '],
+        trial_duration: 800,
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        },
+        on_finish: function(data) {
+            data.task = 'response';
+            data.block = 'formal';
+            data.condition = current_condition,
+            data.stimulus = jsPsych.evaluateTimelineVariable('item'),
+            data.category = jsPsych.evaluateTimelineVariable('category');
+            data.time = jsPsych.evaluateTimelineVariable('time');
+            data.conditional = jsPsych.evaluateTimelineVariable('conditional');
+            if(data.category == data.time || data.category == data.conditional) {
+                data.correct_response = ' ';
+                data.trail_type = 'go';
+            } else {
+                data.correct_response = null;
+                data.trail_type = 'no-go';
+            };
+            if(data.response == data.correct_response) {
+                data.correct = true;
+            } else {
+                data.correct = false;
+            };
+        }
+    }
+
+    var association_practice_instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            return `
+            <p>在这一轮中，目标类别是<b>${jsPsych.evaluateTimelineVariable('time')}</b>和<b>${jsPsych.evaluateTimelineVariable('conditional')}</b>。您需要：</p>
+            <p>（1）当看到表示<b>${jsPsych.evaluateTimelineVariable('time')}</b>或<b>${jsPsych.evaluateTimelineVariable('conditional')}</b>的项目时，立即按下空格键。</p>
+            <p>（2）当看到其他项目时，不要做任何反应，等待下一个项目出现。</p>
+            <p>未能在规定时间内对目标做出反应，或对非目标做出了反应，都会被视为错误。</p>
+            <p>在正式实验前，您将进行一段简短的练习。</p>
+            <br>
+            <p>（请按空格键开始练习...）</p>            
+        `
+        },
+        choices: 'NO_KEYS',
+        on_load: function() {
+            setTimeout(function() {
+                jsPsych.pluginAPI.getKeyboardResponse({
+                    valid_responses: [' '],
+                    callback_function: function() {
+                        jsPsych.finishTrial();
+                    }
+                });
+            }, 2000)
+        },
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        },
+    };
+
+    var association_formal_instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            return `
+            <p>练习结束！</p>
+            <p>再次提醒您，这一轮中的两个目标类别是<b>${jsPsych.evaluateTimelineVariable('time')}</b>和<b>${jsPsych.evaluateTimelineVariable('conditional')}</b>。</p>
+            <br>
+            <p>（请按空格键开始正式实验...）</p>
+        `
+        },
+        choices: 'NO_KEYS',
+        on_load: function() {
+            setTimeout(function() {
+                jsPsych.pluginAPI.getKeyboardResponse({
+                    valid_responses: [' '],
+                    callback_function: function() {
+                        jsPsych.finishTrial();
+                    }
+                });
+            }, 2000)
+        },
+        on_start: function() {
+            document.body.classList.add('no-cursor');
+        },
+    };
+   
+    var association_practice_trials = {
+        timeline: [association_practice_task, feedback],
+        timeline_variables: all_stimuli, 
+        randomize_order: true,
+        repetitions: 1,
+        on_timeline_start: function() {
+            current_condition = jsPsych.evaluateTimelineVariable('condition');
+        },
+    }
+    var association_formal_trials = {
+        timeline: [association_formal_task, feedback],
+        timeline_variables: all_stimuli, 
+        randomize_order: true,
+        repetitions: 4,
+        on_timeline_start: function() {
+            current_condition = jsPsych.evaluateTimelineVariable('condition');
+        },
+    }
+    var association_blocks = {
+        timeline: [association_practice_instructions, fixation, association_practice_trials, association_formal_instructions, fixation, association_formal_trials],
+        timeline_variables: association_conditions,
+        randomize_order: true,
+    }
+    timeline.push(association_blocks);
+    
+    var p_c = 0;
+    var p_h = 0;
+    var f_c = 0;
+    var f_h = 0;
+    function d_prime(data){
+        var hits = data.filter({trail_type: 'go', correct: true}).count() / data.filter({trail_type: 'go'}).count();
+        hits = Math.min(Math.max(hits, 1/data.count()), 1-1/data.count());
+        var false_alarms = data.filter({trail_type: 'no-go', correct: false}).count() / data.filter({trail_type: 'no-go'}).count();
+        false_alarms = Math.min(Math.max(false_alarms, 1/data.count()), 1-1/data.count());
+        return jStat.normal.inv(hits,0,1) - jStat.normal.inv(false_alarms,0,1);
+    }
+
+    var debrief = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            var data = jsPsych.data.get().filter({task: 'response', block: 'formal'});
+            var p_c_data = data.filter({time: '过去', conditional: '反事实'});
+            var p_h_data = data.filter({time: '过去', conditional: '假设'});
+            var f_c_data = data.filter({time: '未来', conditional: '反事实'});
+            var f_h_data = data.filter({time: '未来', conditional: '假设'});
+            p_c = d_prime(p_c_data);
+            p_h = d_prime(p_h_data);
+            f_c = d_prime(f_c_data);
+            f_h = d_prime(f_h_data);
+            return`
+            <h1>实验结束!</h1>
+            <br>
+            <p>感谢您的参与！</p>
+            <p>您的测试结果如下：</p>
+            <br>
+                <p>过去 + 反事实: ${p_c.toFixed(2)}</p>
+                <p>过去 + 假设: ${p_h.toFixed(2)}</p>
+                <p>未来 + 反事实: ${f_c.toFixed(2)}</p>
+                <p>未来 + 假设: ${f_h.toFixed(2)}</p>
+            <br>
+            <p>如果您任意一轮的得分未超过零，您需要重新进行整个实验。</p>
+            <br>
+            <p>（请按空格键退出...）</p>
+        `},
+        choices: 'NO_KEYS',
+        on_load: function() {
+            setTimeout(function() {
+                jsPsych.pluginAPI.getKeyboardResponse({
+                    valid_responses: [' '],
+                    callback_function: function() {
+                        jsPsych.finishTrial();
+                    }
+                });
+            }, 2000)
+        },
+        on_finish: function() {
+            document.body.classList.remove('no-cursor');
+        },
+    };
+    timeline.push(debrief);
+
+    var fullscreen_exit = {
+        type: jsPsychFullscreen,
+        fullscreen_mode: false
+    };
+    timeline.push(fullscreen_exit);
+
+    jsPsych.run(timeline);
+</script>
+</html>
